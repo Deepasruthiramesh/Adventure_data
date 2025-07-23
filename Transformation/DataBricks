@@ -1,1 +1,87 @@
+#Silver Layer
+##Data Access
+
+spark.conf.set("fs.azure.account.auth.type.awdatastorage1.dfs.core.windows.net", "OAuth")
+spark.conf.set("fs.azure.account.oauth.provider.type.awdatastorage1.dfs.core.windows.net", "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider")
+spark.conf.set("fs.azure.account.oauth2.client.id.awdatastorage1.dfs.core.windows.net", "bd0bc902-cc05-46d7-b3a2-c868bef9cada")
+spark.conf.set("fs.azure.account.oauth2.client.secret.awdatastorage1.dfs.core.windows.net",'u2c8Q~jxtqrhvP~DgjcW_n9slVM_k8trtbNTJdn5')
+spark.conf.set("fs.azure.account.oauth2.client.endpoint.awdatastorage1.dfs.core.windows.net", "https://login.microsoftonline.com/6e863785-756b-4cd4-95ac-a789e66cf147/oauth2/token")
+
+##Packages
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
+
+##Data Load
+df_cal = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Calendar.csv')
+
+df_cus = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Customers.csv')
+
+df_procat = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Product_Categories.csv')
+
+df_subcat = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Product_Subcategories.csv')
+
+df_prod = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Products.csv')
+
+df_returns = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Returns.csv')
+
+df_sales = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Sales*.csv')
+
+df_ter = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load('abfss://bronze@awdatastorage1.dfs.core.windows.net/p_rel_url/AdventureWorks_Territories.csv')
+
+##Transformations
+df_cal.display()
+df_cal = df_cal.withColumn('Month',month(col('Date')))
+df_cal = df_cal.withColumn('Year',year(col('Date')))
+df_cal.display()
+
+df_cal.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Calendar.parquet")\
+            .save()
+df_cus = df_cus.withColumn('Fullname',concat_ws(' ',col('FirstName'),col('LastName')))
+df_cus.display()
+
+df_cus.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Customers.parquet")\
+            .save()
+df_procat.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Product_Categories.parquet")\
+            .save()
+df_prod = df_prod.withColumn('ProductSKU',split(col('ProductSKU'),'-')[0])\
+    .withColumn('ProductName',split(col('ProductName'),' ')[0])
+df_prod.display()
+df_prod.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Products.parquet")\
+            .save()
+df_returns.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Returns.parquet")\
+            .save()
+df_subcat.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Product_SubCategories.parquet")\
+            .save()
+df_ter.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Territories.parquet")\
+            .save()
+df_sales = df_sales.withColumn('StockDate',to_timestamp('StockDate'))
+df_sales = df_sales.withColumn('OrerNumber',regexp_replace(col('OrderNumber'),'S','T'))
+df_sales.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Sales.parquet")\
+            .save()
+df_sales.display()
+df_procat.display()
+df_ter.display()
+df_cus.display()
+df_cus.write.format('parquet')\
+    .mode('append')\
+        .option("path", "abfss://silver@awdatastorage1.dfs.core.windows.net/AdventureWorks_Customers.parquet")\
+            .save()
+
+
 
